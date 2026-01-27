@@ -20,7 +20,7 @@ const ticketItemSchema = new Schema(
       min: 0,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Booking Schema (Đơn đặt vé)
@@ -55,7 +55,7 @@ const bookingSchema = new Schema(
     // Trạng thái đơn
     status: {
       type: String,
-      enum: ["pending", "confirmed", "cancelled", "failed"],
+      enum: ["pending", "confirmed", "checked_in", "cancelled", "failed"],
       default: "pending",
     },
 
@@ -79,10 +79,26 @@ const bookingSchema = new Schema(
     qr_code_url: {
       type: String,
     },
+
+    // Vé được đặt bởi ai
+    booked_by: {
+      type: String,
+      // enum: ["customer", "staff"],
+      required: true,
+    },
+
+    // STAFF check-in vé
+    checked_in_at: {
+      type: Date,
+    },
+
+    checked_in_by: {
+      type: Schema.Types.ObjectId, // staff id
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt
-  }
+  },
 );
 
 const Booking = mongoose.model("Booking", bookingSchema);
