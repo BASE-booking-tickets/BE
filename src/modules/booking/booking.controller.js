@@ -10,13 +10,14 @@ import {
 // ==============================
 export const createBooking = async (req, res) => {
   try {
+    const userId = req.user.id;
     // Validate dữ liệu đầu vào
     const data = createBookingSchema.parse(req.body);
 
     // (Khuyến nghị) Tính lại total_amount từ tickets để tránh gian lận
     const calculatedTotal = data.tickets.reduce(
       (sum, ticket) => sum + ticket.price,
-      0
+      0,
     );
 
     if (calculatedTotal !== data.total_amount) {
@@ -26,7 +27,10 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    const booking = await Booking.create(data);
+    const booking = await Booking.create({
+      ...data,
+      user_id: userId,
+    });
 
     return res.status(201).json({
       success: true,

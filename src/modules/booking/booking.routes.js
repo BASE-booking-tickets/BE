@@ -6,10 +6,11 @@ import {
   getBookingById,
   updateBookingStatus,
 } from "./booking.controller.js";
+import { authMiddleware } from "../../shared/middlewares/checkAuth.js";
 
 const bookingRouter = Router();
 // CREATE movie
-bookingRouter.post("/", createBooking);
+bookingRouter.post("/", authMiddleware, createBooking);
 
 // GET all movies
 bookingRouter.get("/", getAllBookings);

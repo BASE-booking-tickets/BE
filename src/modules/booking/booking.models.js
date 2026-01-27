@@ -20,7 +20,7 @@ const ticketItemSchema = new Schema(
       min: 0,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Booking Schema (Đơn đặt vé)
@@ -29,7 +29,7 @@ const bookingSchema = new Schema(
     // Người đặt vé
     user_id: {
       type: Schema.Types.ObjectId,
-      //   ref: "User",
+      ref: "User",
       required: true,
     },
 
@@ -82,7 +82,7 @@ const bookingSchema = new Schema(
   },
   {
     timestamps: true, // createdAt, updatedAt
-  }
+  },
 );
 
 const Booking = mongoose.model("Booking", bookingSchema);

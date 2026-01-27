@@ -9,6 +9,7 @@ import {
   updateUserSchema,
 } from "./user.schema.js";
 import { JWT_SECRET } from "../../shared/configs/dotenvConfig.js";
+import Booking from "../booking/booking.models.js";
 
 // Helper: tạo JWT
 const generateToken = (user) => {
@@ -223,6 +224,29 @@ export const changePassword = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.errors?.[0]?.message || error.message,
+    });
+  }
+};
+
+// ==============================
+// GET MY BOOKINGS – Lịch sử vé của user
+// ==============================
+export const getMyBookings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const bookings = await Booking.find({ user_id: userId })
+      .populate("showtime_id")
+      .sort({ createdAt: -1 });
+    return res.status(200).json({
+      success: true,
+      message: "Lấy lịch sử vé thành công",
+      data: bookings,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };

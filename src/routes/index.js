@@ -7,6 +7,6 @@ const router = Router();
 
 router.use("/films", filmsRouter);
 router.use("/booking", bookingRouter);
-router.use("/userAdmin", UserRouter);
+router.use("/user", UserRouter);
 
 export default router;
