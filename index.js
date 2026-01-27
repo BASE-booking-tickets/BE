@@ -1,9 +1,8 @@
 import express from "express";
-import connectDB from "./src/configs/connectDB.js";
-import notFoundRequest from "./src/middlewares/notFoundRequest.js";
-import { HOST, PORT } from "./src/configs/dotenvConfig.js";
 import router from "./src/routes/index.js";
-import dotenv from "dotenv"
+import connectDB from "./src/shared/configs/connectDB.js";
+import { HOST, PORT } from "./src/shared/configs/dotenvConfig.js";
+import notFoundRequest from "./src/shared/middlewares/notFoundRequest.js";
 
 const app = express();
 app.use(express.json());
