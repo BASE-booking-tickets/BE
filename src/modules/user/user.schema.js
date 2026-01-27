@@ -50,15 +50,22 @@ export const logoutUserSchema = z.object({
 // ==========================================
 
 // Update User Profile (User tự cập nhật)
-export const updateUserSchema = z.object({
-  username: z.string().min(3).optional(),
+export const updateUserSchema = z
+  .object({
+    username: z.string().min(3).optional(),
+    phone: z.string().optional(),
+    avatar_url: z.string().url().optional(),
+    saved_payment_methods: z.array(savedPaymentMethodSchema).optional(),
+  })
+  .strict(); // 🔥 chặn field dư
 
-  phone: z.string().optional(),
-
-  avatar_url: z.string().url("Avatar phải là URL hợp lệ").optional(),
-
-  saved_payment_methods: z.array(savedPaymentMethodSchema).optional(),
-});
+//đổi mật khẩu
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(6),
+  })
+  .strict();
 
 // ==========================================
 // 5. ADMIN – USER MANAGEMENT

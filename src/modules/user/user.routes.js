@@ -3,6 +3,7 @@ import express from "express";
 import { authMiddleware } from "../../shared/middlewares/checkAuth.js";
 import { requireRole } from "../../shared/middlewares/checkPermission.js";
 import {
+  changePassword,
   getAllUsers,
   getProfile,
   login,
@@ -31,6 +32,8 @@ UserRouter.get("/user", authMiddleware, getProfile);
 // Update profile
 UserRouter.put("/user", authMiddleware, updateProfile);
 
+//password
+UserRouter.put("/user/change-password", authMiddleware, changePassword);
 // ADMIN
 // Get all users
 UserRouter.get("/admin", authMiddleware, requireRole("admin"), getAllUsers);
