@@ -1,6 +1,14 @@
-import Router from "express";
+import { Router } from "express";
+import filmsRouter from "../modules/films/films.routes.js";
+import bookingRouter from "../modules/booking/booking.routes.js";
+import UserRouter from "../modules/user/user.routes.js";
+import authRouter from "../modules/auth/auth.routes.js";
 
 const router = Router();
 
-r
+router.use("/films", filmsRouter);
+router.use("/booking", bookingRouter);
+router.use("/userAdmin", UserRouter);
+router.use("/auth", authRouter);
+
 export default router;

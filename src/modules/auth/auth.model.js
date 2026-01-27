@@ -1,27 +1,55 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
 
-const userSchema = new Schema(
+const savedPaymentMethodSchema = new mongoose.Schema(
   {
-    fullname: {
+    type: { type: String }, // Visa, Momo
+    last4: { type: String },
+    token: { type: String },
+  },
+  { _id: false }
+);
+
+const userSchema = new mongoose.Schema(
+  {
+    username: {
       type: String,
       required: true,
+      trim: true,
     },
+
     email: {
       type: String,
       required: true,
+      unique: true,
+      lowercase: true,
     },
+
     password: {
       type: String,
       required: true,
+      select: false, // không trả password khi query
     },
-    role: {
+
+    phone: {
       type: String,
-      default: "member",
     },
+
+    roles: {
+      type: [String],
+      enum: ["customer", "staff", "admin"],
+      default: ["customer"], // 🔥 luôn là customer
+    },
+
+    avatar_url: {
+      type: String,
+    },
+
+    saved_payment_methods: [savedPaymentMethodSchema],
   },
-  { timestamps: true, versionKey: false }
+  {
+    timestamps: true,
+  }
 );
 
-const User = mongoose.model("User", userSchema);
-
-export default User;
+const Auth = mongoose.model("Auth", userSchema);
+export default Auth;
