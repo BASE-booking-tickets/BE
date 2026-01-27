@@ -55,7 +55,7 @@ const bookingSchema = new Schema(
     // Trạng thái đơn
     status: {
       type: String,
-      enum: ["pending", "confirmed", "cancelled", "failed"],
+      enum: ["pending", "confirmed", "checked_in", "cancelled", "failed"],
       default: "pending",
     },
 
@@ -78,6 +78,22 @@ const bookingSchema = new Schema(
     // QR Code (sau khi thanh toán thành công)
     qr_code_url: {
       type: String,
+    },
+
+    // Vé được đặt bởi ai
+    booked_by: {
+      type: String,
+      // enum: ["customer", "staff"],
+      required: true,
+    },
+
+    // STAFF check-in vé
+    checked_in_at: {
+      type: Date,
+    },
+
+    checked_in_by: {
+      type: Schema.Types.ObjectId, // staff id
     },
   },
   {

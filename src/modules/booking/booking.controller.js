@@ -1,7 +1,9 @@
 import Booking from "./booking.models.js";
 import {
   bookingQuerySchema,
+  checkInBookingSchema,
   createBookingSchema,
+  staffCreateBookingSchema,
   updateBookingStatusSchema,
 } from "./booking.schema.js";
 
@@ -14,8 +16,8 @@ export const createBooking = async (req, res) => {
     // Validate dữ liệu đầu vào
     const data = createBookingSchema.parse(req.body);
 
-    // (Khuyến nghị) Tính lại total_amount từ tickets để tránh gian lận
-    const calculatedTotal = data.tickets.reduce(
+    // 🔥 Backend tự tính total
+    const totalAmount = data.tickets.reduce(
       (sum, ticket) => sum + ticket.price,
       0,
     );
@@ -181,6 +183,86 @@ export const deleteBooking = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "ID booking không hợp lệ",
+    });
+  }
+};
+
+// STAFF CREATE BOOKING – Đặt vé tại quầy
+export const staffCreateBooking = async (req, res) => {
+  try {
+    // Validate body
+    const data = staffCreateBookingSchema.parse(req.body);
+
+    // Tính lại tổng tiền
+    const calculatedTotal = data.tickets.reduce(
+      (sum, ticket) => sum + ticket.price,
+      0,
+    );
+
+    if (calculatedTotal !== data.total_amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Total amount không khớp với giá vé",
+      });
+    }
+
+    const booking = await Booking.create({
+      ...data,
+      status: "confirmed", // 💡 thu tiền tại quầy → confirmed luôn
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Đặt vé tại quầy thành công",
+      data: booking,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error?.errors?.[0]?.message || error.message,
+    });
+  }
+};
+
+// CHECK-IN BOOKING – STAFF
+export const checkInBooking = async (req, res) => {
+  try {
+    // Validate body
+    const { booking_id } = checkInBookingSchema.parse(req.body);
+
+    const booking = await Booking.findById(booking_id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy booking",
+      });
+    }
+
+    // ❌ Chưa thanh toán
+    if (booking.status !== "confirmed") {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể check-in booking ở trạng thái "${booking.status}"`,
+      });
+    }
+
+    // ✅ Check-in
+    booking.status = "checked_in";
+    booking.checked_in_at = new Date();
+    booking.checked_in_by = req.user?._id; // staff ID (từ middleware auth)
+
+    await booking.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Check-in vé thành công",
+      data: booking,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error?.errors?.[0]?.message || error.message,
     });
   }
 };
