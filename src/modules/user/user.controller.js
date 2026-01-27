@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "./user.models.js";
 import {
+  changePasswordSchema,
   loginUserSchema,
   registerUserSchema,
   updateUserRoleSchema,
@@ -17,7 +18,7 @@ const generateToken = (user) => {
       roles: user.roles,
     },
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 };
 
@@ -102,12 +103,45 @@ export const login = async (req, res) => {
   }
 };
 
+// LOGOUT
+export const logout = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Chưa đăng nhập",
+      });
+    }
+
+    await User.findByIdAndUpdate(req.user.id, {
+      refresh_token: null,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Đăng xuất thành công",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // GET PROFILE (ME)
 export const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("-password -refresh_token");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -130,12 +164,60 @@ export const updateProfile = async (req, res) => {
 
     const user = await User.findByIdAndUpdate(userId, data, {
       new: true,
-    });
+      runValidators: true,
+    }).select("-password -refresh_token");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
 
     return res.status(200).json({
       success: true,
       message: "Cập nhật thông tin thành công",
       data: user,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.errors?.[0]?.message || error.message,
+    });
+  }
+};
+
+//đổi mật khẩu
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const data = changePasswordSchema.parse(req.body);
+
+    const user = await User.findById(userId).select("+password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(data.currentPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Mật khẩu hiện tại không đúng",
+      });
+    }
+
+    user.password = await bcrypt.hash(data.newPassword, 10);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Đổi mật khẩu thành công",
     });
   } catch (error) {
     return res.status(400).json({
@@ -155,7 +237,7 @@ export const updateUserRoles = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       id,
       { roles: data.roles },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
