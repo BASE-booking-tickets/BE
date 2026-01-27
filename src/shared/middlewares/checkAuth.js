@@ -1,13 +1,41 @@
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../configs/dotenvConfig.js";
-import User from "../../modules/auth/User.js";
-import createError from "../utils/createError.js";
+import User from "../../modules/user/user.models.js";
 
-export const checkAuth = async (req, res, next) => {
-  const token = req.headers?.authorization.split(" ")[1];
-  const decoded = jwt.verify(token, JWT_SECRET);
-  const userExist = await User.findById(decoded._id);
-  if (!userExist) return createError(res, 404, "Unauthorized");
-  req.user = userExist;
-  next();
+export const authMiddleware = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Không có token xác thực",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User không tồn tại",
+      });
+    }
+
+    req.user = {
+      id: user._id,
+      roles: user.roles,
+    };
+
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Token không hợp lệ hoặc đã hết hạn",
+    });
+  }
 };
