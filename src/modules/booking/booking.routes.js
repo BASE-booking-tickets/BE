@@ -9,9 +9,10 @@ import {
   updateBookingStatus,
 } from "./booking.controller.js";
 import { authMiddleware } from "../../shared/middlewares/checkAuth.js";
-import { requireRole } from "../../shared/middlewares/checkPermission.js";
 
 const bookingRouter = Router();
+// CREATE movie
+bookingRouter.post("/", authMiddleware, createBooking);
 
 //CUSTOMER (khách hàng)
 

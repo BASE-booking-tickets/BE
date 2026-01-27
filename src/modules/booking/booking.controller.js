@@ -12,6 +12,8 @@ import {
 // ==============================
 export const createBooking = async (req, res) => {
   try {
+    const userId = req.user.id;
+    // Validate dữ liệu đầu vào
     const data = createBookingSchema.parse(req.body);
 
     // 🔥 Backend tự tính total
@@ -20,10 +22,16 @@ export const createBooking = async (req, res) => {
       0,
     );
 
+    if (calculatedTotal !== data.total_amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Total amount không khớp với giá vé",
+      });
+    }
+
     const booking = await Booking.create({
       ...data,
-      total_amount: totalAmount,
-      booked_by: "customer",
+      user_id: userId,
     });
 
     return res.status(201).json({

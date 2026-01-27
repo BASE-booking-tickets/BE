@@ -29,7 +29,7 @@ const bookingSchema = new Schema(
     // Người đặt vé
     user_id: {
       type: Schema.Types.ObjectId,
-      //   ref: "User",
+      ref: "User",
       required: true,
     },
 

@@ -9,6 +9,7 @@ const router = Router();
 
 router.use("/films", filmsRouter);
 router.use("/booking", bookingRouter);
+router.use("/user", UserRouter);
 router.use("/userAdmin", UserRouter);
 router.use("/auth", authRouter);
 router.use("/showtime", showtimeRouter);
