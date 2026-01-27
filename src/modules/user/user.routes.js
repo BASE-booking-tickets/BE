@@ -6,6 +6,7 @@ import {
   getAllUsers,
   getProfile,
   login,
+  logout,
   register,
   updateProfile,
   updateUserRoles,
@@ -19,6 +20,9 @@ UserRouter.post("/register", register);
 
 // Login
 UserRouter.post("/login", login);
+
+//Logout
+UserRouter.post("/logout", authMiddleware, logout);
 
 // USER (Authenticated)
 // Get profile (me)
@@ -36,7 +40,7 @@ UserRouter.put(
   "/admin/:id/roles",
   authMiddleware,
   requireRole("admin"),
-  updateUserRoles
+  updateUserRoles,
 );
 
 export default UserRouter;

@@ -17,7 +17,7 @@ const generateToken = (user) => {
       roles: user.roles,
     },
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 };
 
@@ -102,6 +102,32 @@ export const login = async (req, res) => {
   }
 };
 
+// LOGOUT
+export const logout = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Chưa đăng nhập",
+      });
+    }
+
+    await User.findByIdAndUpdate(req.user.id, {
+      refresh_token: null,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Đăng xuất thành công",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // GET PROFILE (ME)
 export const getProfile = async (req, res) => {
   try {
@@ -155,7 +181,7 @@ export const updateUserRoles = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       id,
       { roles: data.roles },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {

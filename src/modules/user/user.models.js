@@ -2,7 +2,9 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
+// =============================
 // Sub-schema: Phương thức thanh toán đã lưu
+// =============================
 const savedPaymentMethodSchema = new Schema(
   {
     type: {
@@ -20,12 +22,15 @@ const savedPaymentMethodSchema = new Schema(
       required: true,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
+// =============================
 // User Schema
+// =============================
 const userSchema = new Schema(
   {
+    // ====== THÔNG TIN CƠ BẢN (GIỮ NGUYÊN) ======
     username: {
       type: String,
       required: true,
@@ -44,7 +49,7 @@ const userSchema = new Schema(
     password: {
       type: String,
       required: true,
-      select: false, // ❗ Không trả password về frontend
+      select: false,
     },
 
     phone: {
@@ -67,19 +72,55 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
+
+    // =============================
+    // 1️⃣ AUTH / LOGOUT
+    // =============================
+    refresh_token: {
+      type: String,
+      select: false, // ❗ không trả về frontend
+      default: null,
+    },
+
+    last_login_at: {
+      type: Date,
+    },
+
+    // =============================
+    // 2️⃣ QUẢN LÝ TRẠNG THÁI USER
+    // =============================
+    is_active: {
+      type: Boolean,
+      default: true, // khóa tài khoản nếu false
+    },
+
+    email_verified: {
+      type: Boolean,
+      default: false,
+    },
+
+    // =============================
+    // 3️⃣ LỊCH SỬ VÉ / BOOKING
+    // =============================
+    bookings: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Booking", // khớp với Booking model
+      },
+    ],
   },
   {
     timestamps: {
       createdAt: "created_at",
       updatedAt: false,
     },
-  }
+  },
 );
 
+// =============================
 // Indexes
+// =============================
 userSchema.index({ email: 1 });
 
-// Export model
 const User = mongoose.model("User", userSchema);
-
 export default User;
