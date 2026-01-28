@@ -1,26 +1,72 @@
 import { Router } from "express";
 import {
   createBooking,
-  deleteBooking,
   getAllBookings,
   getBookingById,
   updateBookingStatus,
+  deleteBooking,
+  holdSeats,
+  confirmBooking,
 } from "./booking.controller.js";
+
 import { authMiddleware } from "../../shared/middlewares/checkAuth.js";
 
 const bookingRouter = Router();
-// CREATE movie
+
+/**
+ * =========================
+ * HOLD SEATS (GIỮ GHẾ)
+ * =========================
+ * POST /booking/hold
+ */
+bookingRouter.post("/hold", authMiddleware, holdSeats);
+
+/**
+ * =========================
+ * CONFIRM BOOKING (XÁC NHẬN + TẠO VÉ)
+ * =========================
+ * POST /booking/:id/confirm
+ */
+bookingRouter.post("/:id/confirm", authMiddleware, confirmBooking);
+
+/**
+ * =========================
+ * CREATE BOOKING (fallback)
+ * =========================
+ * POST /booking
+ */
 bookingRouter.post("/", authMiddleware, createBooking);
 
-// GET all movies
+/**
+ * =========================
+ * GET ALL BOOKINGS
+ * =========================
+ * GET /booking
+ */
 bookingRouter.get("/", getAllBookings);
 
-// GET movie by id
+/**
+ * =========================
+ * GET BOOKING BY ID
+ * =========================
+ * GET /booking/:id
+ */
 bookingRouter.get("/:id", getBookingById);
 
-// UPDATE movie
-bookingRouter.put("/:id/", updateBookingStatus);
+/**
+ * =========================
+ * UPDATE BOOKING STATUS
+ * =========================
+ * PUT /booking/:id
+ */
+bookingRouter.put("/:id", authMiddleware, updateBookingStatus);
 
-// DELETE movie
-bookingRouter.delete("/:id", deleteBooking);
+/**
+ * =========================
+ * DELETE BOOKING
+ * =========================
+ * DELETE /booking/:id
+ */
+bookingRouter.delete("/:id", authMiddleware, deleteBooking);
+
 export default bookingRouter;

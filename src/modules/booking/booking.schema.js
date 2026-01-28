@@ -23,11 +23,11 @@ export const ticketItemSchema = z.object({
 
 // Create Booking Schema – Tạo đơn đặt vé
 export const createBookingSchema = z.object({
-  user_id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid user_id"),
+  // user_id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid user_id"),
 
   showtime_id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid showtime_id"),
 
-  booking_date: z.string().datetime().optional(), // nếu không truyền thì backend dùng Date.now
+  // booking_date: z.string().datetime().optional(), // nếu không truyền thì backend dùng Date.now
 
   total_amount: z.number().min(0, "Total amount must be >= 0"),
 
@@ -36,6 +36,12 @@ export const createBookingSchema = z.object({
     .min(1, "Booking must contain at least one ticket"),
 
   payment_method: z.string().min(1, "Payment method is required"),
+
+  //  thêm cho giữ chỗ
+  // locked_seats: z.array(z.string()).optional(),
+
+  //  backend tự set khi giữ chỗ
+  // expires_at: z.string().datetime().optional(),
 
   qr_code_url: z.string().url().optional(),
 });
@@ -50,4 +56,16 @@ export const bookingQuerySchema = z.object({
   user_id: z.string().optional(),
   showtime_id: z.string().optional(),
   status: bookingStatusEnum.optional(),
+});
+
+//GIỮ CHỖ
+export const holdSeatsSchema = z.object({
+  // user_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
+  showtime_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
+
+  locked_seats: z
+    .array(z.string().min(1))
+    .min(1, "Must select at least one seat"),
+
+  payment_method: z.string().min(1),
 });
