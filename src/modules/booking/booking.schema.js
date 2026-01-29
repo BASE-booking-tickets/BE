@@ -69,3 +69,7 @@ export const holdSeatsSchema = z.object({
 
   payment_method: z.string().min(1),
 });
+
+export const confirmBookingSchema = z.object({
+  tickets: z.array(ticketItemSchema).min(1, "Must have at least one ticket"),
+});

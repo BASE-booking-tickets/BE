@@ -1,6 +1,7 @@
 import Booking from "./booking.models.js";
 import {
   bookingQuerySchema,
+  confirmBookingSchema,
   createBookingSchema,
   holdSeatsSchema,
   updateBookingStatusSchema,
@@ -255,49 +256,74 @@ export const holdSeats = async (req, res) => {
 
 export const confirmBooking = async (req, res) => {
   try {
-    const { id } = req.params;
-    const data = createBookingSchema.parse(req.body);
+    const userId = req.user.id;
+    const bookingId = req.params.id;
 
-    const booking = await Booking.findById(id);
+    const { tickets } = confirmBookingSchema.parse(req.body);
+
+    // 1️⃣ Lấy booking đang pending
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      user_id: userId,
+      status: "pending",
+    });
+
     if (!booking) {
-      return res.status(404).json({ success: false });
+      return res.status(404).json({
+        success: false,
+        message: "Booking không tồn tại hoặc đã xử lý",
+      });
     }
 
-    // ❌ Hết hạn giữ ghế
-    if (booking.expires_at < new Date()) {
-      booking.status = "cancelled";
+    // 2️⃣ Check hết hạn giữ ghế
+    if (booking.expires_at && booking.expires_at < new Date()) {
+      booking.status = "failed";
       await booking.save();
+
       return res.status(400).json({
         success: false,
         message: "Giữ ghế đã hết hạn",
       });
     }
 
-    // ✅ Tính lại tiền
-    const calculatedTotal = data.tickets.reduce((sum, t) => sum + t.price, 0);
+    // 3️⃣ Check ghế có nằm trong locked_seats không
+    const seatCodes = tickets.map((t) => t.seat_code);
 
-    if (calculatedTotal !== data.total_amount) {
+    const invalidSeat = seatCodes.find(
+      (seat) => !booking.locked_seats.includes(seat),
+    );
+
+    if (invalidSeat) {
       return res.status(400).json({
         success: false,
-        message: "Total không hợp lệ",
+        message: `Ghế ${invalidSeat} không nằm trong danh sách giữ`,
       });
     }
 
-    booking.tickets = data.tickets;
-    booking.total_amount = calculatedTotal;
+    // 4️⃣ Tính tổng tiền
+    const totalAmount = tickets.reduce((sum, t) => sum + t.price, 0);
+
+    // 5️⃣ Update booking
+    booking.tickets = tickets;
+    booking.total_amount = totalAmount;
     booking.status = "confirmed";
     booking.locked_seats = [];
-    booking.qr_code_url = data.qr_code_url;
+    booking.expires_at = null;
 
     await booking.save();
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       message: "Thanh toán thành công",
-      data: booking,
+      data: {
+        booking_id: booking._id,
+        total_amount: booking.total_amount,
+        status: booking.status,
+      },
     });
   } catch (error) {
-    return res.status(400).json({
+    console.error("CONFIRM BOOKING ERROR:", error);
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
