@@ -1,6 +1,9 @@
 import Booking from "./booking.models.js";
 import {
   bookingQuerySchema,
+  confirmBookingSchema,
+  createBookingSchema,
+  holdSeatsSchema,
   checkInBookingSchema,
   createBookingSchema,
   staffCreateBookingSchema,

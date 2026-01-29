@@ -67,3 +67,19 @@ export const bookingQuerySchema = z.object({
   status: bookingStatusEnum.optional(),
   booked_by: bookedByEnum.optional(),
 });
+
+//GIỮ CHỖ
+export const holdSeatsSchema = z.object({
+  // user_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
+  showtime_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
+
+  locked_seats: z
+    .array(z.string().min(1))
+    .min(1, "Must select at least one seat"),
+
+  payment_method: z.string().min(1),
+});
+
+export const confirmBookingSchema = z.object({
+  tickets: z.array(ticketItemSchema).min(1, "Must have at least one ticket"),
+});
