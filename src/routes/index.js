@@ -4,6 +4,7 @@ import bookingRouter from "../modules/booking/booking.routes.js";
 import UserRouter from "../modules/user/user.routes.js";
 import authRouter from "../modules/auth/auth.routes.js";
 import showtimeRouter from "../modules/showtimes/showtimes.routes.js";
+import roomRouter from "../modules/rooms/room.routes.js";
 
 const router = Router();
 
@@ -12,6 +13,7 @@ router.use("/booking", bookingRouter);
 router.use("/user", UserRouter);
 router.use("/userAdmin", UserRouter);
 router.use("/auth", authRouter);
-router.use("/showtime", showtimeRouter);
+router.use("/showtimes", showtimeRouter);
+router.use("/room", roomRouter);
 
 export default router;
