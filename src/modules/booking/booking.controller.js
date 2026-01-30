@@ -4,9 +4,6 @@ import {
   confirmBookingSchema,
   createBookingSchema,
   holdSeatsSchema,
-  checkInBookingSchema,
-  createBookingSchema,
-  staffCreateBookingSchema,
   updateBookingStatusSchema,
 } from "./booking.schema.js";
 
@@ -19,8 +16,8 @@ export const createBooking = async (req, res) => {
     // Validate dữ liệu đầu vào
     const data = createBookingSchema.parse(req.body);
 
-    // 🔥 Backend tự tính total
-    const totalAmount = data.tickets.reduce(
+    // (Khuyến nghị) Tính lại total_amount từ tickets để tránh gian lận
+    const calculatedTotal = data.tickets.reduce(
       (sum, ticket) => sum + ticket.price,
       0,
     );
@@ -190,82 +187,145 @@ export const deleteBooking = async (req, res) => {
   }
 };
 
-// STAFF CREATE BOOKING – Đặt vé tại quầy
-export const staffCreateBooking = async (req, res) => {
+// giữ ghế
+export const holdSeats = async (req, res) => {
   try {
-    // Validate body
-    const data = staffCreateBookingSchema.parse(req.body);
+    const userId = req.user.id;
 
-    // Tính lại tổng tiền
-    const calculatedTotal = data.tickets.reduce(
-      (sum, ticket) => sum + ticket.price,
-      0,
-    );
+    // 1️⃣ Validate body
+    const data = holdSeatsSchema.parse(req.body);
 
-    if (calculatedTotal !== data.total_amount) {
-      return res.status(400).json({
+    const { showtime_id, locked_seats, payment_method } = data;
+
+    const now = new Date();
+
+    // 2️⃣ Check ghế đã bị giữ / đặt chưa
+    const conflictBooking = await Booking.findOne({
+      showtime_id,
+      status: { $in: ["pending", "confirmed"] },
+      $or: [
+        { "tickets.seat_code": { $in: locked_seats } },
+        { locked_seats: { $in: locked_seats } },
+      ],
+      $or: [
+        { status: "confirmed" },
+        { expires_at: { $gt: now } }, // pending chưa hết hạn
+      ],
+    });
+
+    if (conflictBooking) {
+      return res.status(409).json({
         success: false,
-        message: "Total amount không khớp với giá vé",
+        message: "Một hoặc nhiều ghế đã được giữ hoặc đặt",
       });
     }
 
+    // 3️⃣ Set thời gian hết hạn giữ ghế (VD: 5 phút)
+    const HOLD_MINUTES = 5;
+    const expiresAt = new Date(now.getTime() + HOLD_MINUTES * 60 * 1000);
+
+    // 4️⃣ Tạo booking pending (chưa có tickets)
     const booking = await Booking.create({
-      ...data,
-      status: "confirmed", // 💡 thu tiền tại quầy → confirmed luôn
+      user_id: userId,
+      showtime_id,
+      status: "pending",
+      locked_seats,
+      expires_at: expiresAt,
+      payment_method,
+      total_amount: 0,
+      tickets: [], // tạm thời
     });
 
     return res.status(201).json({
       success: true,
-      message: "Đặt vé tại quầy thành công",
-      data: booking,
+      message: "Giữ chỗ thành công",
+      data: {
+        booking_id: booking._id,
+        expires_at: booking.expires_at,
+        locked_seats: booking.locked_seats,
+      },
     });
   } catch (error) {
     return res.status(400).json({
       success: false,
-      message: error?.errors?.[0]?.message || error.message,
+      message:
+        error?.errors?.[0]?.message || error.message || "Giữ chỗ thất bại",
     });
   }
 };
 
-// CHECK-IN BOOKING – STAFF
-export const checkInBooking = async (req, res) => {
+export const confirmBooking = async (req, res) => {
   try {
-    // Validate body
-    const { booking_id } = checkInBookingSchema.parse(req.body);
+    const userId = req.user.id;
+    const bookingId = req.params.id;
 
-    const booking = await Booking.findById(booking_id);
+    const { tickets } = confirmBookingSchema.parse(req.body);
+
+    // 1️⃣ Lấy booking đang pending
+    const booking = await Booking.findOne({
+      _id: bookingId,
+      user_id: userId,
+      status: "pending",
+    });
 
     if (!booking) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy booking",
+        message: "Booking không tồn tại hoặc đã xử lý",
       });
     }
 
-    // ❌ Chưa thanh toán
-    if (booking.status !== "confirmed") {
+    // 2️⃣ Check hết hạn giữ ghế
+    if (booking.expires_at && booking.expires_at < new Date()) {
+      booking.status = "failed";
+      await booking.save();
+
       return res.status(400).json({
         success: false,
-        message: `Không thể check-in booking ở trạng thái "${booking.status}"`,
+        message: "Giữ ghế đã hết hạn",
       });
     }
 
-    // ✅ Check-in
-    booking.status = "checked_in";
-    booking.checked_in_at = new Date();
-    booking.checked_in_by = req.user?._id; // staff ID (từ middleware auth)
+    // 3️⃣ Check ghế có nằm trong locked_seats không
+    const seatCodes = tickets.map((t) => t.seat_code);
+
+    const invalidSeat = seatCodes.find(
+      (seat) => !booking.locked_seats.includes(seat),
+    );
+
+    if (invalidSeat) {
+      return res.status(400).json({
+        success: false,
+        message: `Ghế ${invalidSeat} không nằm trong danh sách giữ`,
+      });
+    }
+
+    // 4️⃣ Tính tổng tiền
+    const totalAmount = tickets.reduce((sum, t) => sum + t.price, 0);
+
+    // 5️⃣ Update booking
+    booking.tickets = tickets;
+    booking.total_amount = totalAmount;
+    booking.status = "confirmed";
+    booking.locked_seats = [];
+    booking.expires_at = null;
 
     await booking.save();
 
     return res.status(200).json({
       success: true,
-      message: "Check-in vé thành công",
-      data: booking,
+      message: "Thanh toán thành công",
+      data: {
+        booking_id: booking._id,
+        total_amount: booking.total_amount,
+        status: booking.status,
+      },
     });
   } catch (error) {
-    return res.status(400).json({
+    console.error("CONFIRM BOOKING ERROR:", error);
+    return res.status(500).json({
       success: false,
-      message: error?.errors?.[0]?.message || error.message,
+      message: error.message,
     });
   }
 };
