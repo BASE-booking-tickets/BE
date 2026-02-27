@@ -9,7 +9,7 @@ import roomRouter from "../modules/rooms/room.routes.js";
 const router = Router();
 
 router.use("/films", filmsRouter);
-router.use("/booking", bookingRouter);
+router.use("/bookings", bookingRouter);
 router.use("/user", UserRouter);
 router.use("/userAdmin", UserRouter);
 router.use("/auth", authRouter);

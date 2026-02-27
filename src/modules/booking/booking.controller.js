@@ -13,6 +13,7 @@ import {
 export const createBooking = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log(userId)
     // Validate dữ liệu đầu vào
     const data = createBookingSchema.parse(req.body);
 

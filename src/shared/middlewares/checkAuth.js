@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import jwt, { decode } from "jsonwebtoken";
 import { JWT_SECRET } from "../configs/dotenvConfig.js";
 import User from "../../modules/user/user.models.js";
 
@@ -16,9 +16,9 @@ export const authMiddleware = async (req, res, next) => {
     const token = authHeader.split(" ")[1];
 
     const decoded = jwt.verify(token, JWT_SECRET);
-
-    const user = await User.findById(decoded.id);
-
+    console.log(decoded)
+    const user = await User.findById(decoded.userId);
+    console.log(user)
     if (!user) {
       return res.status(401).json({
         success: false,

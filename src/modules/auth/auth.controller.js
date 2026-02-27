@@ -1,14 +1,14 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { registerSchema, loginSchema } from "./auth.schema.js";
-import Auth from "./auth.model.js";
+import User from "../user/user.models.js";
 
 // REGISTER (KHÁCH HÀNG)
 export const authRegister = async (req, res) => {
   try {
     const data = registerSchema.parse(req.body);
 
-    const existingUser = await Auth.findOne({ email: data.email });
+    const existingUser = await User.findOne({ email: data.email });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -18,7 +18,7 @@ export const authRegister = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    const user = await Auth.create({
+    const user = await User.create({
       username: data.username,
       email: data.email,
       password: hashedPassword,
@@ -51,7 +51,7 @@ export const authLogin = async (req, res) => {
   try {
     const data = loginSchema.parse(req.body);
 
-    const user = await Auth.findOne({ email: data.email }).select("+password");
+    const user = await User.findOne({ email: data.email }).select("+password");
     if (!user) {
       return res.status(400).json({
         success: false,
