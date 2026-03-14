@@ -7,20 +7,12 @@ const { Schema } = mongoose;
 // ==============================
 const ticketItemSchema = new Schema(
   {
-    seat_code: {
-      type: String,
-      required: true, // "A1"
-    },
-    type: {
-      type: String,
-      enum: ["standard", "vip", "couple"],
-      required: true,
-    },
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
+    seat_code: { type: String, required: true },
+    type: { type: String, enum: ["standard", "vip", "couple"], required: true },
+    price: { type: Number, required: true, min: 0 },
+    // THÊM: Để check-in từng ghế (nếu cần)
+    isCheckIn: { type: Boolean, default: false },
+    checkInAt: { type: Date, default: null },
   },
   { _id: false },
 );
@@ -30,88 +22,42 @@ const ticketItemSchema = new Schema(
 // ==============================
 const bookingSchema = new Schema(
   {
-    // Người đặt vé
-    user_id: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
-    // Suất chiếu
-    showtime_id: {
-      type: Schema.Types.ObjectId,
-      required: true,
-    },
-
-    // Ngày tạo booking
-    booking_date: {
-      type: Date,
-      default: Date.now,
-    },
-
-    // Tổng tiền
-    total_amount: {
-      type: Number,
-      required: true,
-      default: 0, // ✅ giữ ghế chưa có tiền
-      min: 0,
-    },
-
-    // Trạng thái đơn
+    user_id: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    showtime_id: { type: Schema.Types.ObjectId, ref: "Showtime", required: true }, // Nên có ref
+    booking_date: { type: Date, default: Date.now },
+    total_amount: { type: Number, required: true, default: 0, min: 0 },
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled", "failed"],
       default: "pending",
       index: true,
     },
-
-    // Danh sách vé (snapshot tại thời điểm mua)
-    tickets: {
-      type: [ticketItemSchema],
-      // required: true,
-      // validate: [
-      //   (val) => val.length > 0,
-      //   "Booking must contain at least one ticket",
-      // ],
-      default: [],
+    tickets: { type: [ticketItemSchema], default: [] },
+    locked_seats: { type: [String], default: [] },
+    expires_at: { type: Date, index: true },
+    txnRef: { type: String, index: true },
+    payment_method: { type: String, required: true },
+    
+    // --- CÁC TRƯỜNG QUAN TRỌNG ĐỂ HOÀN THÀNH CHECK-IN ---
+    isCheckIn: { 
+      type: Boolean, 
+      default: false 
     },
-
-    // 👉 Danh sách ghế đang bị giữ (phục vụ check trùng nhanh)
-    locked_seats: {
-      type: [String], // ["A1", "A2"]
-      default: [],
+    checkInAt: { 
+      type: Date, 
+      default: null 
     },
+    // --------------------------------------------------
 
-    // 👉 Thời gian hết hạn giữ ghế
-    expires_at: {
-      type: Date,
-      index: true,
-    },
-
-    // Phương thức thanh toán
-    payment_method: {
-      type: String,
-      required: true, // "Momo", "ZaloPay"
-    },
-
-    // QR Code (sau khi thanh toán thành công)
-    qr_code_url: {
-      type: String,
-    },
+    qr_code_url: { type: String },
   },
-  {
-    timestamps: true, // createdAt, updatedAt
-  },
+  { timestamps: true }
 );
 
-// ==============================
-// Index tối ưu check ghế
-// ==============================
 bookingSchema.index(
   { showtime_id: 1, status: 1, "tickets.seat_code": 1 },
   { name: "seat_booking_index" },
 );
 
 const Booking = mongoose.model("Booking", bookingSchema);
-
 export default Booking;

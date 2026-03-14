@@ -12,12 +12,23 @@ import {
 // ==============================
 export const createBooking = async (req, res) => {
   try {
-    const userId = req.user.id;
-    console.log(userId)
-    // Validate dữ liệu đầu vào
+    // 1. Kiểm tra an toàn để tránh crash "reading id of undefined"
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"
+      });
+    }
+
+    // LẤY userId TỪ req.user ĐÃ ĐƯỢC MIDDLEWARE GIẢI MÃ
+    const userId = req.user.id; 
+    
+    const { txnRef } = req.body; 
+
+    // 2. Validate dữ liệu với Zod
     const data = createBookingSchema.parse(req.body);
 
-    // (Khuyến nghị) Tính lại total_amount từ tickets để tránh gian lận
+    // 3. Kiểm tra tổng tiền
     const calculatedTotal = data.tickets.reduce(
       (sum, ticket) => sum + ticket.price,
       0,
@@ -26,28 +37,34 @@ export const createBooking = async (req, res) => {
     if (calculatedTotal !== data.total_amount) {
       return res.status(400).json({
         success: false,
-        message: "Total amount không khớp với giá vé",
+        message: "Tổng tiền không khớp với giá vé",
       });
     }
 
+    // 4. Tạo Booking trong Database
     const booking = await Booking.create({
       ...data,
-      user_id: userId,
+      user_id: userId, // Biến userId hiện đã được khai báo ở dòng 12
+      txnRef: txnRef,
     });
 
+    // 5. Trả về phản hồi thành công (Giúp Frontend chạy tiếp sang bước VNPay)
     return res.status(201).json({
       success: true,
       message: "Tạo đơn đặt vé thành công",
       data: booking,
     });
+
   } catch (error) {
+    console.error("LỖI TẠO BOOKING:", error);
+
+    // Xử lý lỗi Zod hoặc lỗi Database để không làm treo Frontend
     return res.status(400).json({
       success: false,
-      message: error.errors?.[0]?.message || error.message,
+      message: error.errors?.[0]?.message || error.message || "Dữ liệu không hợp lệ",
     });
   }
 };
-
 // ==============================
 // GET ALL – Lấy danh sách booking
 // ==============================
@@ -108,48 +125,35 @@ export const getBookingById = async (req, res) => {
 // ==============================
 // UPDATE – Cập nhật trạng thái booking
 // ==============================
+// Trong booking.controller.js
 export const updateBookingStatus = async (req, res) => {
-  console.log(updateBookingStatus);
   try {
     const { id } = req.params;
+    const data = updateBookingStatusSchema.parse(req.body);
 
-    // Validate body theo Zod
-    const { status } = updateBookingStatusSchema.parse(req.body);
+    // Cập nhật và lấy bản ghi đã gộp dữ liệu (populate)
+    const booking = await Booking.findByIdAndUpdate(
+      id,
+      { $set: data },
+      { new: true }
+    )
+    .populate({
+      path: 'showtime_id',
+      populate: { path: 'movie_id', select: 'title' } // Lấy tên phim từ movie_id
+    });
 
-    const booking = await Booking.findById(id);
     if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy booking",
-      });
+      return res.status(404).json({ success: false, message: "Không tìm thấy booking" });
     }
-
-    // ❌ Không cho update nếu booking đã kết thúc
-    if (["confirmed", "cancelled", "failed"].includes(booking.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Không thể cập nhật booking ở trạng thái "${booking.status}"`,
-      });
-    }
-
-    // ✅ pending → trạng thái hợp lệ (đã được Zod validate)
-    booking.status = status;
-    await booking.save();
 
     return res.status(200).json({
       success: true,
-      message: "Cập nhật trạng thái booking thành công",
-      data: booking,
+      data: booking, // Dữ liệu này giờ đã có chi tiết phim và ghế
     });
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message:
-        error?.errors?.[0]?.message || error.message || "Dữ liệu không hợp lệ",
-    });
+    // ... catch error
   }
 };
-
 // ==============================
 // DELETE – Xóa booking
 // ==============================

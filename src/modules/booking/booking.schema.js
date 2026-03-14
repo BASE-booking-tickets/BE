@@ -36,6 +36,7 @@ export const createBookingSchema = z.object({
     .min(1, "Booking must contain at least one ticket"),
 
   payment_method: z.string().min(1, "Payment method is required"),
+  txnRef: z.string().optional(),
 
   //  thêm cho giữ chỗ
   // locked_seats: z.array(z.string()).optional(),
@@ -48,9 +49,13 @@ export const createBookingSchema = z.object({
 
 // Update Booking Status - Cập nhật trạng thái đơn
 export const updateBookingStatusSchema = z.object({
-  status: bookingStatusEnum,
-});
+  // Status vẫn giữ nguyên
+  status: z.enum(["pending", "confirmed", "cancelled", "failed"]).optional(),
 
+  // THÊM 2 DÒNG NÀY ĐỂ ZOD CHO PHÉP DỮ LIỆU ĐI QUA
+  isCheckIn: z.boolean().optional(),
+  checkInAt: z.string().optional(),
+});
 // Query Params - Lọc danh sách booking
 export const bookingQuerySchema = z.object({
   user_id: z.string().optional(),
