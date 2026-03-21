@@ -59,7 +59,7 @@ bookingRouter.get("/:id", getBookingById);
  * =========================
  * PUT /booking/:id
  */
-bookingRouter.put("/:id", authMiddleware, updateBookingStatus);
+bookingRouter.put("/:id", updateBookingStatus);
 
 /**
  * =========================

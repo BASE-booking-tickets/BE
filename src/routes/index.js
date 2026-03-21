@@ -6,16 +6,17 @@ import authRouter from "../modules/auth/auth.routes.js";
 import showtimeRouter from "../modules/showtimes/showtimes.routes.js";
 import roomRouter from "../modules/rooms/room.routes.js";
 import paymenRouter from "../modules/payment/cnpay.routes.js";
+import genreRoutes from "../modules/genre/genre.routes.js";
 
 const router = Router();
 
 router.use("/films", filmsRouter);
 router.use("/bookings", bookingRouter);
 router.use("/user", UserRouter);
-router.use("/userAdmin", UserRouter);
 router.use("/auth", authRouter);
 router.use("/showtimes", showtimeRouter);
 router.use("/room", roomRouter);
 router.use("/payment", paymenRouter);
+router.use("/genres", genreRoutes);
 
 export default router;

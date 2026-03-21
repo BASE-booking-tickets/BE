@@ -8,11 +8,10 @@ import {
 } from "./booking.schema.js";
 
 // ==============================
-// CREATE – Tạo đơn đặt vé
+// CREATE – Tạo đơn đặt vé trực tiếp
 // ==============================
 export const createBooking = async (req, res) => {
   try {
-    // 1. Kiểm tra an toàn để tránh crash "reading id of undefined"
     if (!req.user || !req.user.id) {
       return res.status(401).json({
         success: false,
@@ -20,15 +19,13 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    // LẤY userId TỪ req.user ĐÃ ĐƯỢC MIDDLEWARE GIẢI MÃ
-    const userId = req.user.id; 
-    
-    const { txnRef } = req.body; 
+    const userId = req.user.id;
+    const { txnRef } = req.body;
 
-    // 2. Validate dữ liệu với Zod
+    // Validate dữ liệu với Zod (Đảm bảo schema đã có movie_id)
     const data = createBookingSchema.parse(req.body);
 
-    // 3. Kiểm tra tổng tiền
+    // Kiểm tra tổng tiền từ danh sách vé gửi lên
     const calculatedTotal = data.tickets.reduce(
       (sum, ticket) => sum + ticket.price,
       0,
@@ -41,14 +38,14 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    // 4. Tạo Booking trong Database
+    // Tạo Booking trong Database
     const booking = await Booking.create({
       ...data,
-      user_id: userId, // Biến userId hiện đã được khai báo ở dòng 12
+      user_id: userId,
+      movie_id: data.movie_id, // Đã thêm movie_id
       txnRef: txnRef,
     });
 
-    // 5. Trả về phản hồi thành công (Giúp Frontend chạy tiếp sang bước VNPay)
     return res.status(201).json({
       success: true,
       message: "Tạo đơn đặt vé thành công",
@@ -57,30 +54,47 @@ export const createBooking = async (req, res) => {
 
   } catch (error) {
     console.error("LỖI TẠO BOOKING:", error);
-
-    // Xử lý lỗi Zod hoặc lỗi Database để không làm treo Frontend
     return res.status(400).json({
       success: false,
       message: error.errors?.[0]?.message || error.message || "Dữ liệu không hợp lệ",
     });
   }
 };
+
 // ==============================
 // GET ALL – Lấy danh sách booking
 // ==============================
+// ==============================
+// GET ALL – Lấy danh sách booking (Có hỗ trợ lọc theo Movie)
+// ==============================
 export const getAllBookings = async (req, res) => {
   try {
-    // Validate query params
-    const query = bookingQuerySchema.parse(req.query);
+    const queryData = bookingQuerySchema.parse(req.query);
+    const filter = {};
 
-    const bookings = await Booking.find(query)
+    // Nếu truyền movie_id, chỉ lấy đơn hàng của phim đó
+    if (queryData.movie_id) {
+      filter.movie_id = queryData.movie_id;
+    }
+
+    // Nếu truyền showtime_id (Dùng cho trang chọn ghế), lọc cực kỳ chính xác
+    if (queryData.showtime_id) {
+      filter.showtime_id = queryData.showtime_id;
+    }
+
+    // Lọc bỏ những bản ghi cũ bị thiếu dữ liệu quan trọng nếu cần
+    // filter.movie_id = { $ne: null }; 
+
+    const bookings = await Booking.find(filter)
       .populate("user_id", "username email")
+      .populate("movie_id", "title poster_url genres")
       .populate("showtime_id")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
       message: "Lấy danh sách booking thành công",
+      count: bookings.length,
       data: bookings,
     });
   } catch (error) {
@@ -92,7 +106,7 @@ export const getAllBookings = async (req, res) => {
 };
 
 // ==============================
-// GET BY ID – Lấy booking theo ID
+// GET BY ID – Lấy chi tiết 1 booking
 // ==============================
 export const getBookingById = async (req, res) => {
   try {
@@ -100,6 +114,7 @@ export const getBookingById = async (req, res) => {
 
     const booking = await Booking.findById(id)
       .populate("user_id", "username email")
+      .populate("movie_id") // Thêm populate movie
       .populate("showtime_id");
 
     if (!booking) {
@@ -125,22 +140,18 @@ export const getBookingById = async (req, res) => {
 // ==============================
 // UPDATE – Cập nhật trạng thái booking
 // ==============================
-// Trong booking.controller.js
 export const updateBookingStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const data = updateBookingStatusSchema.parse(req.body);
 
-    // Cập nhật và lấy bản ghi đã gộp dữ liệu (populate)
     const booking = await Booking.findByIdAndUpdate(
       id,
       { $set: data },
       { new: true }
     )
-    .populate({
-      path: 'showtime_id',
-      populate: { path: 'movie_id', select: 'title' } // Lấy tên phim từ movie_id
-    });
+      .populate("movie_id", "title")
+      .populate("showtime_id");
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Không tìm thấy booking" });
@@ -148,19 +159,23 @@ export const updateBookingStatus = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: booking, // Dữ liệu này giờ đã có chi tiết phim và ghế
+      message: "Cập nhật trạng thái thành công",
+      data: booking,
     });
   } catch (error) {
-    // ... catch error
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
+
 // ==============================
 // DELETE – Xóa booking
 // ==============================
 export const deleteBooking = async (req, res) => {
   try {
     const { id } = req.params;
-
     const booking = await Booking.findById(id);
 
     if (!booking) {
@@ -170,7 +185,6 @@ export const deleteBooking = async (req, res) => {
       });
     }
 
-    // Không cho xóa nếu đã confirmed
     if (booking.status === "confirmed") {
       return res.status(400).json({
         success: false,
@@ -192,19 +206,18 @@ export const deleteBooking = async (req, res) => {
   }
 };
 
-// giữ ghế
+// ==============================
+// HOLD SEATS – Giữ ghế tạm thời
+// ==============================
 export const holdSeats = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    // 1️⃣ Validate body
     const data = holdSeatsSchema.parse(req.body);
 
-    const { showtime_id, locked_seats, payment_method } = data;
-
+    const { showtime_id, movie_id, locked_seats, payment_method } = data;
     const now = new Date();
 
-    // 2️⃣ Check ghế đã bị giữ / đặt chưa
+    // Kiểm tra ghế đã bị giữ hoặc đã thanh toán chưa
     const conflictBooking = await Booking.findOne({
       showtime_id,
       status: { $in: ["pending", "confirmed"] },
@@ -214,38 +227,38 @@ export const holdSeats = async (req, res) => {
       ],
       $or: [
         { status: "confirmed" },
-        { expires_at: { $gt: now } }, // pending chưa hết hạn
+        { expires_at: { $gt: now } }, // Pending nhưng chưa hết hạn
       ],
     });
 
     if (conflictBooking) {
       return res.status(409).json({
         success: false,
-        message: "Một hoặc nhiều ghế đã được giữ hoặc đặt",
+        message: "Một hoặc nhiều ghế đã được giữ hoặc đặt bởi người khác",
       });
     }
 
-    // 3️⃣ Set thời gian hết hạn giữ ghế (VD: 5 phút)
     const HOLD_MINUTES = 5;
     const expiresAt = new Date(now.getTime() + HOLD_MINUTES * 60 * 1000);
 
-    // 4️⃣ Tạo booking pending (chưa có tickets)
     const booking = await Booking.create({
       user_id: userId,
+      movie_id, // Lưu movie_id ngay từ khi giữ chỗ
       showtime_id,
       status: "pending",
       locked_seats,
       expires_at: expiresAt,
       payment_method,
       total_amount: 0,
-      tickets: [], // tạm thời
+      tickets: [],
     });
 
     return res.status(201).json({
       success: true,
-      message: "Giữ chỗ thành công",
+      message: "Giữ chỗ thành công trong 5 phút",
       data: {
         booking_id: booking._id,
+        movie_id: booking.movie_id,
         expires_at: booking.expires_at,
         locked_seats: booking.locked_seats,
       },
@@ -253,12 +266,14 @@ export const holdSeats = async (req, res) => {
   } catch (error) {
     return res.status(400).json({
       success: false,
-      message:
-        error?.errors?.[0]?.message || error.message || "Giữ chỗ thất bại",
+      message: error?.errors?.[0]?.message || error.message || "Giữ chỗ thất bại",
     });
   }
 };
 
+// ==============================
+// CONFIRM – Xác nhận thanh toán & Hoàn tất vé
+// ==============================
 export const confirmBooking = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -266,7 +281,6 @@ export const confirmBooking = async (req, res) => {
 
     const { tickets } = confirmBookingSchema.parse(req.body);
 
-    // 1️⃣ Lấy booking đang pending
     const booking = await Booking.findOne({
       _id: bookingId,
       user_id: userId,
@@ -276,24 +290,20 @@ export const confirmBooking = async (req, res) => {
     if (!booking) {
       return res.status(404).json({
         success: false,
-        message: "Booking không tồn tại hoặc đã xử lý",
+        message: "Booking không tồn tại hoặc đã được xử lý trước đó",
       });
     }
 
-    // 2️⃣ Check hết hạn giữ ghế
     if (booking.expires_at && booking.expires_at < new Date()) {
       booking.status = "failed";
       await booking.save();
-
       return res.status(400).json({
         success: false,
-        message: "Giữ ghế đã hết hạn",
+        message: "Thời gian giữ ghế đã hết hạn",
       });
     }
 
-    // 3️⃣ Check ghế có nằm trong locked_seats không
     const seatCodes = tickets.map((t) => t.seat_code);
-
     const invalidSeat = seatCodes.find(
       (seat) => !booking.locked_seats.includes(seat),
     );
@@ -301,27 +311,26 @@ export const confirmBooking = async (req, res) => {
     if (invalidSeat) {
       return res.status(400).json({
         success: false,
-        message: `Ghế ${invalidSeat} không nằm trong danh sách giữ`,
+        message: `Ghế ${invalidSeat} không khớp với danh sách đã giữ`,
       });
     }
 
-    // 4️⃣ Tính tổng tiền
     const totalAmount = tickets.reduce((sum, t) => sum + t.price, 0);
 
-    // 5️⃣ Update booking
     booking.tickets = tickets;
     booking.total_amount = totalAmount;
     booking.status = "confirmed";
-    booking.locked_seats = [];
+    booking.locked_seats = []; // Giải phóng locked_seats sau khi xác nhận
     booking.expires_at = null;
 
     await booking.save();
 
     return res.status(200).json({
       success: true,
-      message: "Thanh toán thành công",
+      message: "Xác nhận đặt vé thành công",
       data: {
         booking_id: booking._id,
+        movie_id: booking.movie_id,
         total_amount: booking.total_amount,
         status: booking.status,
       },
@@ -330,7 +339,7 @@ export const confirmBooking = async (req, res) => {
     console.error("CONFIRM BOOKING ERROR:", error);
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Có lỗi xảy ra khi xác nhận đặt vé",
     });
   }
 };

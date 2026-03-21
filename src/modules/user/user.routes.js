@@ -40,7 +40,7 @@ UserRouter.put("/user/change-password", authMiddleware, changePassword);
 UserRouter.get("/user/bookings", authMiddleware, getMyBookings);
 // ADMIN
 // Get all users
-UserRouter.get("/admin", authMiddleware, requireRole("admin"), getAllUsers);
+UserRouter.get("/", getAllUsers);
 
 // Update user roles
 UserRouter.put(

@@ -1,6 +1,7 @@
 import express from "express";
 import {
   bookSeats,
+  cancelShowtimeAndNotify,
   createShowtime,
   deleteShowtime,
   getAllShowtimes,
@@ -23,5 +24,8 @@ showtimeRouter.delete("/:id", deleteShowtime);
 
 // Đặt ghế
 showtimeRouter.post("/:id/book-seats", bookSeats);
+
+// huỷ lịch
+showtimeRouter.post("/cancel/:id", cancelShowtimeAndNotify);
 
 export default showtimeRouter;

@@ -1,3 +1,5 @@
+import Booking from "../booking/booking.models.js";
+import nodemailer from 'nodemailer';
 import Showtime from "./showtimes.models.js";
 import {
   createShowtimeSchema,
@@ -163,5 +165,76 @@ export const bookSeats = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+
+export const cancelShowtimeAndNotify = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // 1. Tìm thông tin suất chiếu trước khi xóa (để lấy tên phim, giờ chiếu gửi mail)
+    const showtime = await Showtime.findById(id).populate('movie_id');
+    if (!showtime) {
+      return res.status(404).json({ message: "Không tìm thấy lịch chiếu để xóa." });
+    }
+
+    // 2. Tìm danh sách khách hàng đã mua vé của suất này
+    const bookings = await Booking.find({ showtime_id: id, status: 'confirmed' }).populate('user_id');
+
+    // 3. Cấu hình gửi mail (Dùng App Password bạn đã tạo)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'tuankhanh111904@gmail.com',
+        pass: 'mzpn pria cjmw fnnv'
+      }
+    });
+
+    // 4. Gửi thông báo cho từng khách hàng (nếu có)
+    if (bookings && bookings.length > 0) {
+      for (const booking of bookings) {
+        const customerEmail = booking.user_id?.email;
+        if (customerEmail) {
+          try {
+            await transporter.sendMail({
+              from: '"CineAdmin Support" <tuankhanh111904@gmail.com>',
+              to: customerEmail,
+              subject: '[THÔNG BÁO KHẨN] Hủy lịch chiếu phim do sự cố',
+              html: `
+                <div style="font-family: Arial, sans-serif; border: 1px solid #eee; padding: 20px;">
+                  <h2 style="color: #e74c3c;">Rạp phim gặp sự cố kỹ thuật</h2>
+                  <p>Chào <b>${booking.user_id?.name || 'Quý khách'}</b>,</p>
+                  <p>Rất tiếc, suất chiếu phim <b>${showtime.movie_id?.title || showtime.movie_title}</b> lúc <b>${new Date(showtime.start_time).toLocaleString('vi-VN')}</b> đã bị hủy.</p>
+                  <p>Vui lòng liên hệ trực tiếp <b>Zalo của rạp</b> qua số điện thoại <b>0123456789</b> hỗ trợ để được hoàn tiền ngay lập tức.</p>
+                  <p>Trân trọng xin lỗi bạn vì sự bất tiện này!</p>
+                </div>
+              `
+            });
+          } catch (mailErr) {
+            console.error("Lỗi gửi mail cho khách:", customerEmail, mailErr.message);
+          }
+        }
+      }
+
+      // 5. Cập nhật trạng thái các đơn hàng liên quan thành 'cancelled' (để khách biết vé ko còn hiệu lực)
+      await Booking.updateMany(
+        { showtime_id: id, status: 'confirmed' },
+        { status: 'cancelled' }
+      );
+    }
+
+    // 6. THỰC HIỆN XOÁ VĨNH VIỄN LỊCH CHIẾU KHỎI DATABASE
+    await Showtime.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      message: bookings.length > 0
+        ? "Đã xóa lịch chiếu và gửi mail thông báo cho khách."
+        : "Đã xóa lịch chiếu thành công (suất này chưa có khách đặt)."
+    });
+
+  } catch (error) {
+    console.error("Lỗi tại Server:", error);
+    return res.status(500).json({ message: "Lỗi hệ thống: " + error.message });
   }
 };
