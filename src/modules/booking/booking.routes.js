@@ -1,81 +1,72 @@
 import { Router } from "express";
 import {
-  checkInBooking,
   createBooking,
-  deleteBooking,
   getAllBookings,
   getBookingById,
-  staffCreateBooking,
   updateBookingStatus,
+  deleteBooking,
+  holdSeats,
+  confirmBooking,
 } from "./booking.controller.js";
+
 import { authMiddleware } from "../../shared/middlewares/checkAuth.js";
-import { requireRole } from "../../shared/middlewares/checkPermission.js";
 
 const bookingRouter = Router();
 
-//CUSTOMER (khách hàng)
+/**
+ * =========================
+ * HOLD SEATS (GIỮ GHẾ)
+ * =========================
+ * POST /booking/hold
+ */
+bookingRouter.post("/hold", authMiddleware, holdSeats);
 
-// CREATE movie
-bookingRouter.post(
-  "/",
-  // authMiddleware, requireRole("customer"),
-  createBooking,
-);
+/**
+ * =========================
+ * CONFIRM BOOKING (XÁC NHẬN + TẠO VÉ)
+ * =========================
+ * POST /booking/:id/confirm
+ */
+bookingRouter.post("/:id/confirm", authMiddleware, confirmBooking);
 
-// Xem booking của mình
-bookingRouter.get(
-  "/me",
-  // authMiddleware,
-  // requireRole("customer"),
-  getAllBookings,
-);
+/**
+ * =========================
+ * CREATE BOOKING (fallback)
+ * =========================
+ * POST /booking
+ */
+bookingRouter.post("/", authMiddleware, createBooking);
 
-//  STAFF (nhân viên rạp)
-// Đặt vé tại quầy
-bookingRouter.post(
-  "/staff/create",
-  // authMiddleware,
-  // requireRole("staff"),
-  staffCreateBooking,
-);
+/**
+ * =========================
+ * GET ALL BOOKINGS
+ * =========================
+ * GET /booking
+ */
+bookingRouter.get("/", getAllBookings);
 
-// Check-in vé
-bookingRouter.post(
-  "/staff/check-in",
-  // authMiddleware,
-  // requireRole("staff"),
-  checkInBooking,
-);
+/**
+ * =========================
+ * GET BOOKING BY ID
+ * =========================
+ * GET /booking/:id
+ */
+bookingRouter.get("/:id", getBookingById);
 
-//ADMIN (quản lý)
-// GET all movies
-bookingRouter.get(
-  "/",
-  // authMiddleware, requireRole("admin"),
-  getAllBookings,
-);
+/**
+ * =========================
+ * UPDATE BOOKING STATUS
+ * =========================
+ * PUT /booking/:id
+ */
+bookingRouter.put("/:id", updateBookingStatus);
 
-// GET movie by id
-bookingRouter.get(
-  "/:id",
-  // authMiddleware,
-  // requireRole("admin", "staff"),
-  getBookingById,
-);
+/**
+ * =========================
+ * DELETE BOOKING
+ * =========================
+ * DELETE /booking/:id
+ */
+bookingRouter.delete("/:id", authMiddleware, deleteBooking);
 
-// UPDATE movie
-bookingRouter.put(
-  "/:id/status",
-  // authMiddleware,
-  // requireRole("admin"),
-  updateBookingStatus,
-);
-
-// DELETE movie
-bookingRouter.delete(
-  "/:id",
-  // authMiddleware,
-  // requireRole("admin"),
-  deleteBooking,
-);
 export default bookingRouter;

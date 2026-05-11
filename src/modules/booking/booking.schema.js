@@ -1,69 +1,80 @@
 import { z } from "zod";
 
 // Loại ghế
-
 export const seatTypeEnum = z.enum(["standard", "vip", "couple"]);
 
-//Trạng thái đơn vé
+// Trạng thái đơn vé
 export const bookingStatusEnum = z.enum([
-  "pending", // chờ thanh toán
-  "confirmed", // đã thanh toán / thu tiền tại quầy
+  "pending",
+  "confirmed",
   "cancelled",
   "failed",
-  "checked_in", // đã vào rạp
+  "refunded", // Thêm refunded để đồng bộ với Model
 ]);
-
-//Ai là người đặt vé
-export const bookedByEnum = z.enum(["customer", "staff"]);
 
 // Ticket Item Schema - Vé chi tiết
 export const ticketItemSchema = z.object({
-  seat_code: z.string().min(1, "Seat code is required"), // "A1"
-
+  seat_code: z.string().min(1, "Seat code is required"),
   type: seatTypeEnum,
-
-  price: z.number().min(0, "Ticket price must be greater than or equal to 0"),
+  price: z.number().min(0, "Ticket price must be >= 0"),
+  isCheckIn: z.boolean().optional(),
+  checkInAt: z.string().datetime().optional().nullable(),
 });
 
 // Create Booking Schema – Tạo đơn đặt vé
 export const createBookingSchema = z.object({
-  user_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
-  showtime_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
-  tickets: z.array(ticketItemSchema).min(1),
-  // total_amount: z.number().min(0),
-  payment_method: z.string().min(1),
-  qr_code_url: z.string().optional(),
-});
+  // THÊM: movie_id là bắt buộc
+  movie_id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid movie_id"),
 
-// customer đặt online
-export const customerBookingSchema = z.object({
-  ...createBookingSchema.shape,
-  booked_by: z.literal("customer"),
-});
+  showtime_id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid showtime_id"),
 
-// staff đặt tại quầy
-export const staffCreateBookingSchema = z.object({
-  ...createBookingSchema.shape,
-  booked_by: z.literal("staff"),
+  total_amount: z.number().min(0, "Total amount must be >= 0"),
+
+  status: z.enum(["pending", "confirmed", "paid", "cancelled"]).optional().default("pending"),
+
+  tickets: z
+    .array(ticketItemSchema)
+    .min(1, "Booking must contain at least one ticket"),
+
+  payment_method: z.string().min(1, "Payment method is required"),
+
+  txnRef: z.string().optional(),
+
+  // Thêm để Zod cho phép nhận các trường này nếu FE gửi lên
+  locked_seats: z.array(z.string()).optional(),
+  expires_at: z.string().datetime().optional().nullable(),
+  qr_code_url: z.string().url().optional().nullable(),
 });
 
 // Update Booking Status - Cập nhật trạng thái đơn
 export const updateBookingStatusSchema = z.object({
-  status: bookingStatusEnum.refine(
-    (s) => s !== "checked_in",
-    "Không dùng API này để check-in",
-  ),
-});
-
-// CHECK-IN (STAFF)
-export const checkInBookingSchema = z.object({
-  booking_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
+  status: bookingStatusEnum.optional(),
+  isCheckIn: z.boolean().optional(),
+  checkInAt: z.string().datetime().optional().nullable(),
 });
 
 // Query Params - Lọc danh sách booking
 export const bookingQuerySchema = z.object({
   user_id: z.string().optional(),
+  movie_id: z.string().optional(), // Thêm lọc theo phim
   showtime_id: z.string().optional(),
   status: bookingStatusEnum.optional(),
-  booked_by: bookedByEnum.optional(),
+});
+
+// GIỮ CHỖ (HOLD SEATS)
+export const holdSeatsSchema = z.object({
+  showtime_id: z.string().regex(/^[0-9a-fA-F]{24}$/),
+
+  // THÊM: movie_id cho bước giữ chỗ
+  movie_id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid movie_id"),
+
+  locked_seats: z
+    .array(z.string().min(1))
+    .min(1, "Must select at least one seat"),
+
+  payment_method: z.string().min(1),
+});
+
+export const confirmBookingSchema = z.object({
+  tickets: z.array(ticketItemSchema).min(1, "Must have at least one ticket"),
 });

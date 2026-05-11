@@ -2,55 +2,28 @@ import mongoose from "mongoose";
 
 const ratingStatsSchema = new mongoose.Schema(
   {
-    average: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 10,
-    },
-    count: {
-      type: Number,
-      default: 0,
-    },
+    average: { type: Number, default: 0, min: 0, max: 10 },
+    count: { type: Number, default: 0 },
   },
   { _id: false }
 );
 
 const movieSchema = new mongoose.Schema(
   {
-    // ===== Thông tin cơ bản =====
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    title: { type: String, required: true, trim: true },
+    slug: { type: String, required: true, unique: true, lowercase: true },
+    description: { type: String },
+    duration_min: { type: Number, required: true },
+    release_date: { type: Date, required: true },
 
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-    },
-
-    description: {
-      type: String,
-    },
-
-    duration_min: {
-      type: Number,
-      required: true,
-    },
-
-    release_date: {
-      type: Date,
-      required: true,
-    },
-
-    // ===== Phân loại =====
-    genres: {
-      type: [String], // ["Comedy", "Drama"]
-      required: true,
-    },
+    // Phân loại: Dùng mảng ObjectId để tham chiếu tới Genre
+    genres: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Genre",
+        required: true,
+      }
+    ],
 
     status: {
       type: String,
@@ -58,34 +31,29 @@ const movieSchema = new mongoose.Schema(
       default: "coming_soon",
     },
 
-    // ===== Ekip =====
-    director: {
-      type: String,
-    },
+    director: { type: String },
+    cast: { type: [String], default: [] }, // Mặc định là mảng rỗng để tránh lỗi .map ở FE
 
-    cast: {
-      type: [String], // ["Mikey Madison", ...]
-    },
+    poster_url: { type: String, required: true },
+    banner_url: { type: String },
 
-    // ===== Hình ảnh =====
-    poster_url: {
-      type: String,
-      required: true,
-    },
-
-    banner_url: {
-      type: String,
-    },
-
-    // ===== Đánh giá =====
     rating_stats: {
       type: ratingStatsSchema,
       default: () => ({}),
     },
+
+    // Thêm trường này nếu bạn muốn lọc phim theo độ tuổi (tùy chọn)
+    age_rating: { type: String, default: "P" }
   },
   {
-    timestamps: true, // createdAt, updatedAt
+    timestamps: true,
+    toJSON: { virtuals: true }, // Để hỗ trợ populate tốt hơn
+    toObject: { virtuals: true }
   }
 );
+
+// Index để tìm kiếm phim nhanh hơn theo tiêu đề
+movieSchema.index({ title: 'text' });
+
 const Movie = mongoose.model("Movie", movieSchema);
 export default Movie;

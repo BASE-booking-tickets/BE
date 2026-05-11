@@ -5,6 +5,7 @@ import { requireRole } from "../../shared/middlewares/checkPermission.js";
 import {
   changePassword,
   getAllUsers,
+  getMyBookings,
   getProfile,
   login,
   logout,
@@ -34,9 +35,12 @@ UserRouter.put("/user", authMiddleware, updateProfile);
 
 //password
 UserRouter.put("/user/change-password", authMiddleware, changePassword);
+
+//getall lich su vé của người dùng
+UserRouter.get("/user/bookings", authMiddleware, getMyBookings);
 // ADMIN
 // Get all users
-UserRouter.get("/admin", authMiddleware, requireRole("admin"), getAllUsers);
+UserRouter.get("/", getAllUsers);
 
 // Update user roles
 UserRouter.put(
