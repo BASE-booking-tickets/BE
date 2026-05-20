@@ -69,8 +69,9 @@ export const authLogin = async (req, res) => {
 
     // Không check role admin/staff
     // Cho phép login dù chỉ là customer
+    console.log("🔑 SECRET LÚC LOGIN:", process.env.JWT_SECRET);
 
-    const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    const accessToken = jwt.sign({ userId: user._id }, "123456", {
       expiresIn: "7d",
     });
 
