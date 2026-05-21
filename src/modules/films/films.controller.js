@@ -1,5 +1,23 @@
+import cloudinary from "../../shared/configs/cloudinary.js";
 import Movie from "./fimls.models.js";
 import { movieCreateSchema, movieUpdateSchema } from "./fimls.schema.js";
+
+
+/**
+ * ======================================================
+ * HELPER: Ép kiểu dữ liệu cho FormData
+ * ======================================================
+ */
+const formatFormData = (body) => {
+  if (body.duration_min) {
+    body.duration_min = Number(body.duration_min);
+  }
+  // Nếu chỉ có 1 thể loại được chọn, FormData có thể gửi lên chuỗi thay vì mảng
+  if (typeof body.genres === 'string') {
+    body.genres = [body.genres];
+  }
+  return body;
+};
 
 /**
  * ======================================================
@@ -8,10 +26,24 @@ import { movieCreateSchema, movieUpdateSchema } from "./fimls.schema.js";
  */
 export const createMovie = async (req, res) => {
   try {
-    // 1. Validate dữ liệu đầu vào bằng Zod
-    const parsedData = movieCreateSchema.parse(req.body);
+    // 1. Xử lý upload ảnh lên Cloudinary nếu có file
+    if (req.file) {
+      const b64 = Buffer.from(req.file.buffer).toString("base64");
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
 
-    // 2. Kiểm tra trùng Slug (Slug phải là duy nhất)
+      const uploadResponse = await cloudinary.uploader.upload(dataURI, {
+        folder: "movie_posters", // Đổi tên thư mục tùy ý
+      });
+
+      // Gán URL an toàn từ Cloudinary vào body để Zod kiểm tra
+      req.body.poster_url = uploadResponse.secure_url;
+    }
+
+    // 2. Ép kiểu dữ liệu & Validate bằng Zod
+    const formattedBody = formatFormData(req.body);
+    const parsedData = movieCreateSchema.parse(formattedBody);
+
+    // 3. Kiểm tra trùng Slug
     const existedMovie = await Movie.findOne({ slug: parsedData.slug });
     if (existedMovie) {
       return res.status(400).json({
@@ -20,11 +52,11 @@ export const createMovie = async (req, res) => {
       });
     }
 
-    // 3. Khởi tạo và lưu phim
+    // 4. Khởi tạo và lưu phim
     const movie = new Movie(parsedData);
     await movie.save();
 
-    // 4. Populate để trả về dữ liệu có tên thể loại ngay lập tức
+    // 5. Populate để trả về dữ liệu có tên thể loại ngay lập tức
     const populatedMovie = await Movie.findById(movie._id).populate("genres", "name slug");
 
     return res.status(201).json({
@@ -44,12 +76,11 @@ export const createMovie = async (req, res) => {
 
 /**
  * ======================================================
- * GET ALL – Lấy danh sách phim (Dùng cho bảng Admin)
+ * GET ALL – Lấy danh sách phim (Giữ nguyên)
  * ======================================================
  */
 export const getAllMovies = async (req, res) => {
   try {
-    // Populate genres để hiển thị Tag tên thể loại ở Frontend
     const movies = await Movie.find()
       .populate("genres", "name slug")
       .sort({ createdAt: -1 });
@@ -70,13 +101,12 @@ export const getAllMovies = async (req, res) => {
 
 /**
  * ======================================================
- * GET BY ID – Chi tiết phim
+ * GET BY ID – Chi tiết phim (Giữ nguyên)
  * ======================================================
  */
 export const getMovieById = async (req, res) => {
   try {
     const { id } = req.params;
-
     const movie = await Movie.findById(id).populate("genres", "name slug description");
 
     if (!movie) {
@@ -105,14 +135,27 @@ export const updateMovie = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Validate dữ liệu update
-    const parsedData = movieUpdateSchema.parse(req.body);
+    // 1. Nếu người dùng có tải lên ảnh mới, thực hiện upload để ghi đè link cũ
+    if (req.file) {
+      const b64 = Buffer.from(req.file.buffer).toString("base64");
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
 
-    // 2. Thực hiện cập nhật
+      const uploadResponse = await cloudinary.uploader.upload(dataURI, {
+        folder: "movie_posters",
+      });
+
+      req.body.poster_url = uploadResponse.secure_url;
+    }
+
+    // 2. Ép kiểu dữ liệu & Validate update
+    const formattedBody = formatFormData(req.body);
+    const parsedData = movieUpdateSchema.parse(formattedBody);
+
+    // 3. Thực hiện cập nhật
     const updatedMovie = await Movie.findByIdAndUpdate(
       id,
       { $set: parsedData },
-      { new: true, runValidators: true } // Trả về bản ghi mới nhất và chạy kiểm tra schema
+      { new: true, runValidators: true }
     ).populate("genres", "name slug");
 
     if (!updatedMovie) {
@@ -135,13 +178,12 @@ export const updateMovie = async (req, res) => {
 
 /**
  * ======================================================
- * DELETE – Xóa phim
+ * DELETE – Xóa phim (Giữ nguyên)
  * ======================================================
  */
 export const deleteMovie = async (req, res) => {
   try {
     const { id } = req.params;
-
     const movie = await Movie.findByIdAndDelete(id);
 
     if (!movie) {
