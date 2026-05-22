@@ -6,12 +6,12 @@ import {
   getMovieById,
   updateMovie,
 } from "./films.controller.js";
+import upload from '../../shared/middlewares/upload.js';
 
 const filmsRouter = Router();
 
 // CREATE movie
-filmsRouter.post("/", createMovie);
-
+filmsRouter.post('/', upload.single('image'), createMovie);
 // GET all movies
 filmsRouter.get("/", getAllMovies);
 
