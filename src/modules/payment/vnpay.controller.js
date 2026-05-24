@@ -88,12 +88,14 @@ export const vnpayReturn = async (req, res) => {
 
         if (secureHash === signed) {
             if (responseCode === '00') {
-                // TÌM VÀ CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
+                // TÌM VÀ CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG KÈM THEO POPULATE
                 const updatedBooking = await Booking.findOneAndUpdate(
                     { txnRef: txnRef }, 
                     { status: 'confirmed' }, 
                     { new: true }
-                ).populate('showtime_id');
+                )
+                .populate("movie_id", "title poster_url") // Bổ sung để lấy Tên phim và Link ảnh Poster
+                .populate('showtime_id');                 // Giữ nguyên móc nối lấy thông tin Suất chiếu
 
                 if (updatedBooking) {
                     console.log("✅ Đã xác nhận đơn hàng thành công:", txnRef);

@@ -235,9 +235,15 @@ export const getMyBookings = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const bookings = await Booking.find({ user_id: userId })
+    // THÊM ĐIỀU KIỆN LỌC TRẠNG THÁI Ở ĐÂY
+    const bookings = await Booking.find({
+      user_id: userId,
+      status: { $in: ['confirmed', 'success'] } // Chỉ lấy vé có trạng thái confirmed hoặc success
+    })
+      .populate("movie_id", "title poster_url duration_min")
       .populate("showtime_id")
       .sort({ createdAt: -1 });
+
     return res.status(200).json({
       success: true,
       message: "Lấy lịch sử vé thành công",
