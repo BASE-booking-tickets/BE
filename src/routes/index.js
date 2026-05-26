@@ -7,6 +7,7 @@ import showtimeRouter from "../modules/showtimes/showtimes.routes.js";
 import roomRouter from "../modules/rooms/room.routes.js";
 import paymenRouter from "../modules/payment/cnpay.routes.js";
 import genreRoutes from "../modules/genre/genre.routes.js";
+import settingsRouter from "../modules/systemSetting/settings.route.js";
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use("/showtimes", showtimeRouter);
 router.use("/room", roomRouter);
 router.use("/payment", paymenRouter);
 router.use("/genres", genreRoutes);
+router.use("/settings", settingsRouter);
 
 export default router;

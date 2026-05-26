@@ -6,6 +6,7 @@ import {
   updateShowtimeSchema,
   bookSeatsSchema,
 } from "./showtimes.schema.js";
+import SystemSetting from "../systemSetting/systemSetting.model.js";
 
 // Lấy tất cả lịch chiếu
 export const getAllShowtimes = async (req, res) => {
@@ -173,7 +174,7 @@ export const cancelShowtimeAndNotify = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // 1. Tìm thông tin suất chiếu trước khi xóa (để lấy tên phim, giờ chiếu gửi mail)
+    // 1. Tìm thông tin suất chiếu trước khi xóa
     const showtime = await Showtime.findById(id).populate('movie_id');
     if (!showtime) {
       return res.status(404).json({ message: "Không tìm thấy lịch chiếu để xóa." });
@@ -182,23 +183,34 @@ export const cancelShowtimeAndNotify = async (req, res) => {
     // 2. Tìm danh sách khách hàng đã mua vé của suất này
     const bookings = await Booking.find({ showtime_id: id, status: 'confirmed' }).populate('user_id');
 
-    // 3. Cấu hình gửi mail (Dùng App Password bạn đã tạo)
+    // --- 3. ĐỌC CẤU HÌNH EMAIL TỪ DATABASE ---
+    const settings = await SystemSetting.findOne();
+    
+    // Ưu tiên lấy từ Admin cài đặt, dự phòng bằng email mặc định của bạn nếu DB trống
+    const smtpHost = settings?.email?.smtp_host || 'smtp.gmail.com';
+    const smtpPort = settings?.email?.smtp_port || 465;
+    const smtpUser = settings?.email?.smtp_user || 'tuankhanh111904@gmail.com';
+    const smtpPassword = settings?.email?.smtp_password || 'mzpn pria cjmw fnnv';
+
+    // 4. Cấu hình gửi mail với dữ liệu động
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465 || smtpPort === 465, // true nếu dùng port 465 (SSL), false cho 587 (TLS)
       auth: {
-        user: 'tuankhanh111904@gmail.com',
-        pass: 'mzpn pria cjmw fnnv'
+        user: smtpUser,
+        pass: smtpPassword
       }
     });
 
-    // 4. Gửi thông báo cho từng khách hàng (nếu có)
+    // 5. Gửi thông báo cho từng khách hàng (nếu có)
     if (bookings && bookings.length > 0) {
       for (const booking of bookings) {
         const customerEmail = booking.user_id?.email;
         if (customerEmail) {
           try {
             await transporter.sendMail({
-              from: '"CineAdmin Support" <tuankhanh111904@gmail.com>',
+              from: `"CineAdmin Support" <${smtpUser}>`, // Sử dụng email động làm người gửi
               to: customerEmail,
               subject: '[THÔNG BÁO KHẨN] Hủy lịch chiếu phim do sự cố',
               html: `
@@ -217,7 +229,7 @@ export const cancelShowtimeAndNotify = async (req, res) => {
         }
       }
 
-      // 5. Cập nhật trạng thái các đơn hàng liên quan thành 'cancelled' (để khách biết vé ko còn hiệu lực)
+      // Cập nhật trạng thái các đơn hàng liên quan thành 'cancelled'
       await Booking.updateMany(
         { showtime_id: id, status: 'confirmed' },
         { status: 'cancelled' }
