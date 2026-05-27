@@ -8,6 +8,7 @@ import roomRouter from "../modules/rooms/room.routes.js";
 import paymenRouter from "../modules/payment/cnpay.routes.js";
 import genreRoutes from "../modules/genre/genre.routes.js";
 import settingsRouter from "../modules/systemSetting/settings.route.js";
+import comboRouter from "../modules/combo/combo.routes.js";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/room", roomRouter);
 router.use("/payment", paymenRouter);
 router.use("/genres", genreRoutes);
 router.use("/settings", settingsRouter);
+router.use("/combos", comboRouter);
 
 export default router;

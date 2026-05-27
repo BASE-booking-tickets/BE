@@ -23,15 +23,15 @@ const ticketItemSchema = new Schema(
 const bookingSchema = new Schema(
   {
     user_id: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    
+
     // THAM CHIẾU ĐẾN MOVIE (Quan trọng để truy vấn lịch sử đặt vé theo phim)
     movie_id: { type: Schema.Types.ObjectId, ref: "Movie", required: true, index: true },
-    
+
     showtime_id: { type: Schema.Types.ObjectId, ref: "Showtime", required: true, index: true },
-    
+
     booking_date: { type: Date, default: Date.now },
     total_amount: { type: Number, required: true, default: 0, min: 0 },
-    
+
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled", "failed", "refunded"],
@@ -40,32 +40,40 @@ const bookingSchema = new Schema(
     },
 
     tickets: { type: [ticketItemSchema], default: [] },
-    
+
     // Danh sách seat_code để nhanh chóng kiểm tra ghế trống/đã đặt tại Showtime
     locked_seats: { type: [String], default: [] },
-    
+
     // Thời gian hết hạn giữ ghế (thường là 5-10 phút để thanh toán)
     expires_at: { type: Date, index: true },
-    
+
     // Thông tin thanh toán
-    payment_method: { 
-      type: String, 
-      enum: ["vnpay", "momo", "zalo_pay", "stripe", "cash"], 
-      required: true 
+    payment_method: {
+      type: String,
+      enum: ["vnpay", "momo", "zalo_pay", "stripe", "cash"],
+      required: true
     },
     txnRef: { type: String, index: true, unique: true, sparse: true }, // Mã giao dịch từ cổng thanh toán
-    
+
     // Trạng thái check-in tổng quát của cả đơn hàng
-    isCheckIn: { 
-      type: Boolean, 
-      default: false 
+    isCheckIn: {
+      type: Boolean,
+      default: false
     },
-    checkInAt: { 
-      type: Date, 
-      default: null 
+    checkInAt: {
+      type: Date,
+      default: null
     },
 
     qr_code_url: { type: String }, // Lưu link ảnh QR để User quét tại rạp
+
+    foods: [
+      {
+        combo_id: { type: mongoose.Schema.Types.ObjectId, ref: "Combo" },
+        quantity: { type: Number, required: true, min: 1 },
+        price: { type: Number, required: true } // Bắt buộc lưu giá tại thời điểm mua để chống sai lệch nếu Admin đổi giá sau này
+      }
+    ],
   },
   { timestamps: true }
 );

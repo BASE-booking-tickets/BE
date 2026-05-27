@@ -22,19 +22,29 @@ export const createBooking = async (req, res) => {
     const userId = req.user.id;
     const { txnRef } = req.body;
 
-    // Validate dữ liệu với Zod (Đảm bảo schema đã có movie_id)
+    // Validate dữ liệu với Zod
     const data = createBookingSchema.parse(req.body);
 
-    // Kiểm tra tổng tiền từ danh sách vé gửi lên
-    const calculatedTotal = data.tickets.reduce(
+    // 1. Tính tổng tiền từ danh sách vé gửi lên
+    let calculatedTotal = data.tickets.reduce(
       (sum, ticket) => sum + ticket.price,
       0,
     );
 
+    // 2. Tính cộng dồn thêm tiền Bắp Nước (nếu có)
+    if (data.foods && Array.isArray(data.foods) && data.foods.length > 0) {
+      const foodTotal = data.foods.reduce(
+        (sum, item) => sum + (item.price * item.quantity),
+        0
+      );
+      calculatedTotal += foodTotal;
+    }
+
+    // 3. So sánh với tổng tiền gửi lên
     if (calculatedTotal !== data.total_amount) {
       return res.status(400).json({
         success: false,
-        message: "Tổng tiền không khớp với giá vé",
+        message: "Tổng tiền không khớp với giá vé và combo",
       });
     }
 

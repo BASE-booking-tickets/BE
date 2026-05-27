@@ -44,6 +44,13 @@ export const createBookingSchema = z.object({
   locked_seats: z.array(z.string()).optional(),
   expires_at: z.string().datetime().optional().nullable(),
   qr_code_url: z.string().url().optional().nullable(),
+  foods: z.array(
+    z.object({
+      combo_id: z.string(),
+      quantity: z.number().min(1),
+      price: z.number().min(0)
+    })
+  ).optional(),
 });
 
 // Update Booking Status - Cập nhật trạng thái đơn
