@@ -12,6 +12,7 @@ import {
 // ==============================
 export const createBooking = async (req, res) => {
   try {
+    // Kiểm tra đăng nhập
     if (!req.user || !req.user.id) {
       return res.status(401).json({
         success: false,
@@ -22,13 +23,13 @@ export const createBooking = async (req, res) => {
     const userId = req.user.id;
     const { txnRef } = req.body;
 
-    // Validate dữ liệu với Zod
+    // Validate dữ liệu từ Frontend gửi lên bằng Zod
     const data = createBookingSchema.parse(req.body);
 
     // 1. Tính tổng tiền từ danh sách vé gửi lên
     let calculatedTotal = data.tickets.reduce(
       (sum, ticket) => sum + ticket.price,
-      0,
+      0
     );
 
     // 2. Tính cộng dồn thêm tiền Bắp Nước (nếu có)
@@ -40,26 +41,33 @@ export const createBooking = async (req, res) => {
       calculatedTotal += foodTotal;
     }
 
-    // 3. So sánh với tổng tiền gửi lên
+    // 3. Đối chiếu bảo mật: So sánh với tổng tiền gửi lên
     if (calculatedTotal !== data.total_amount) {
       return res.status(400).json({
         success: false,
-        message: "Tổng tiền không khớp với giá vé và combo",
+        message: "Tổng tiền không khớp với giá vé và combo. Vui lòng thử lại!",
       });
     }
 
-    // Tạo Booking trong Database
+    // 4. Tạo Booking trong Database
     const booking = await Booking.create({
       ...data,
       user_id: userId,
-      movie_id: data.movie_id, // Đã thêm movie_id
+      movie_id: data.movie_id,
       txnRef: txnRef,
     });
 
+    // 5. Populate: Dịch các ID thô thành dữ liệu chi tiết (Tên phim, Suất chiếu, Tên Combo)
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('movie_id', 'title poster_url')
+      .populate('showtime_id')
+      .populate('foods.combo_id', 'name image price'); // Lấy chi tiết thông tin bắp nước
+
+    // 6. Trả về kết quả hoàn chỉnh cho Frontend
     return res.status(201).json({
       success: true,
       message: "Tạo đơn đặt vé thành công",
-      data: booking,
+      data: populatedBooking,
     });
 
   } catch (error) {

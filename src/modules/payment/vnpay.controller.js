@@ -48,7 +48,7 @@ export const createPaymentUrl = async (req, res) => {
         const isSandbox = settings?.payment?.vnp_is_sandbox !== false; // Mặc định là true nếu chưa cấu hình
         const vnpUrl = isSandbox
             ? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-            : "https://pay.vnpay.vn/vpcpay.html"; 
+            : "https://pay.vnpay.vn/vpcpay.html";
         let vnp_Params = {
             'vnp_Version': '2.1.0',
             'vnp_Command': 'pay',
@@ -100,12 +100,12 @@ export const vnpayReturn = async (req, res) => {
         delete vnp_Params['vnp_SecureHashType'];
 
         vnp_Params = sortObject(vnp_Params);
-        
+
         // [SỬA LẠI]: Đọc cấu hình động từ Database để lấy đúng HashSecret Admin vừa cài đặt
         const settings = await SystemSetting.findOne();
         // Fallback về config gốc nếu trong Database chưa có
         const secretKey = settings?.payment?.vnp_hashSecret || vnpayConfig.vnp_HashSecret;
-        
+
         const signData = qs.stringify(vnp_Params, { encode: false });
 
         const hmac = crypto.createHmac("sha512", secretKey);
@@ -113,18 +113,18 @@ export const vnpayReturn = async (req, res) => {
 
         if (secureHash === signed) {
             if (responseCode === '00') {
-                // TÌM VÀ CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG KÈM THEO POPULATE
+
                 const updatedBooking = await Booking.findOneAndUpdate(
                     { txnRef: txnRef },
                     { status: 'confirmed' },
                     { new: true }
                 )
-                    .populate("movie_id", "title poster_url") // Bổ sung để lấy Tên phim và Link ảnh Poster
-                    .populate('showtime_id');                 // Giữ nguyên móc nối lấy thông tin Suất chiếu
-
+                    .populate("movie_id", "title poster_url")
+                    .populate('showtime_id')
+                    .populate('foods.combo_id'); // <--- [BỔ SUNG DÒNG NÀY]: Lấy chi tiết tên bắp nước trả về cho Frontend
                 if (updatedBooking) {
                     console.log("✅ Đã xác nhận đơn hàng thành công:", txnRef);
-                    
+
                     // [THÊM MỚI 2]: KÍCH HOẠT GỬI MAIL TỰ ĐỘNG
                     // Chạy ngầm (không dùng await) để API phản hồi ngay lập tức, khách không bị treo màn hình chờ gửi mail
                     sendTicketEmail(updatedBooking._id);

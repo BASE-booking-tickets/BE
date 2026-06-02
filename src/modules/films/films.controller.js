@@ -9,6 +9,8 @@ import { movieCreateSchema, movieUpdateSchema } from "./fimls.schema.js";
  * ======================================================
  */
 const formatFormData = (body) => {
+  if (!body) return {};
+
   if (body.duration_min) {
     body.duration_min = Number(body.duration_min);
   }
@@ -26,17 +28,13 @@ const formatFormData = (body) => {
  */
 export const createMovie = async (req, res) => {
   try {
-    // 1. Xử lý upload ảnh lên Cloudinary nếu có file
+    // 1. Xử lý upload ảnh (Đã được CloudinaryStorage làm sẵn ở Middleware)
     if (req.file) {
-      const b64 = Buffer.from(req.file.buffer).toString("base64");
-      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+      // Lấy thẳng đường link xịn từ Multer Cloudinary
+      const imageUrl = req.file.path || req.file.secure_url || req.file.url;
 
-      const uploadResponse = await cloudinary.uploader.upload(dataURI, {
-        folder: "movie_posters", // Đổi tên thư mục tùy ý
-      });
-
-      // Gán URL an toàn từ Cloudinary vào body để Zod kiểm tra
-      req.body.poster_url = uploadResponse.secure_url;
+      // Gán URL an toàn vào body để Zod kiểm tra
+      req.body.poster_url = imageUrl;
     }
 
     // 2. Ép kiểu dữ liệu & Validate bằng Zod
@@ -135,16 +133,10 @@ export const updateMovie = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Nếu người dùng có tải lên ảnh mới, thực hiện upload để ghi đè link cũ
+    // 1. Nếu người dùng có tải lên ảnh mới, lấy link mới ghi đè
     if (req.file) {
-      const b64 = Buffer.from(req.file.buffer).toString("base64");
-      const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-
-      const uploadResponse = await cloudinary.uploader.upload(dataURI, {
-        folder: "movie_posters",
-      });
-
-      req.body.poster_url = uploadResponse.secure_url;
+      const imageUrl = req.file.path || req.file.secure_url || req.file.url;
+      req.body.poster_url = imageUrl;
     }
 
     // 2. Ép kiểu dữ liệu & Validate update

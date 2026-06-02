@@ -19,7 +19,7 @@ filmsRouter.get("/", getAllMovies);
 filmsRouter.get("/:id", getMovieById);
 
 // UPDATE movie
-filmsRouter.put("/:id", updateMovie);
+filmsRouter.put("/:id", upload.single('image'), updateMovie);
 
 // DELETE movie
 filmsRouter.delete("/:id", deleteMovie);
